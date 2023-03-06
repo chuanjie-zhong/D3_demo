@@ -1,12 +1,20 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as d3 from "d3";
+import { ZoomOutOutlined, ZoomInOutlined } from "@ant-design/icons";
+import { Button } from "antd";
 
-function BubbleComponent({ data }) {
+function NewBubble({ data }) {
   const chartRef = useRef(null);
   const thumbnailRef = useRef(null);
+  const upNumberRef = useRef(null);
   const [number, setNumber] = useState(1);
   const [width, setWidth] = useState(932);
   const [height, setHeight] = useState(932);
+  const [first, setFirst] = useState([]);
+  const [ks, setKs] = useState(1);
+  const [upnumber, setUpnumber] = useState(1);
+  const [previousZoom, setPreviousZoom] = useState(0);
+  const [initialTranslate, setInitialTranslate] = useState([0, 0]);
 
   const pack = (data) =>
     d3.pack().size([width, height]).padding(10)(
@@ -32,6 +40,7 @@ function BubbleComponent({ data }) {
           return b.value - a.value;
         })
     );
+
   const color = d3
     .scaleLinear()
     .domain([0, 5])
@@ -39,52 +48,60 @@ function BubbleComponent({ data }) {
     .interpolate(d3.interpolateHcl);
   useEffect(() => {
     createChart();
-    console.log(d3, "11111111");
+    // console.log(d3, "11111111");
   }, []);
-
-  window.addEventListener("wheel", function (event) {
-    console.log("鼠标滚轮被滚动了！");
-    console.log("滚动的距离是：" + event.deltaY);
-    if (event?.deltaY > 0) {
-      console.log(number, "numberddsasa");
-      if (number <= 1) {
-        return;
-      }
-      console.log(123098221121);
-      let newNumber = number - 0.5;
-      setNumber(newNumber);
-    } else {
-      if (number >= 2) {
-        return;
-      }
-      console.log(123221121);
-      let newNumber = number + 0.5;
-      setNumber(newNumber);
-    }
-  });
+  function handleMouseMove(event) {
+    const element = chartRef.current;
+    const rect = element.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    chartRef["coordinate"] = { x, y };
+    console.log(x, y, 88888888);
+  }
   function createChart() {
     const root = pack(data);
     let focus = root;
     let view;
     const container = d3
       .select("#container")
-      .call(d3.zoom().on("zoom", zoomed));
+      .style("width", "100% !important")
+      .style("height", "100% !important");
+    let zoomss = d3.zoom().on("zoom", function () {
+      const { k, x, y } = d3.event?.transform || { k: 1, x: 0, y: 0 };
+      // console.log(d3.mouse(), "deltadeltadeltadeltadelta");
+      thumbnailRef.current = {
+        x: d3.mouse(container.node())[0] - chartRef?.coordinate.x,
+        y: d3.mouse(container.node())[1] - chartRef?.coordinate.y,
+      };
+      // console.log(
+      //   d3.mouse(container.node())[0] - chartRef?.coordinate.x,
+      //   d3.mouse(container.node())[1] - chartRef?.coordinate.y,
+      //   thumbnailRef,
+      //   "chartRefchartRefchartRef"
+      // );
+      svg.attr(
+        "transform",
+        `translate(${d3.mouse(container.node())[0] - chartRef?.coordinate.x},${
+          d3.mouse(container.node())[1] - chartRef?.coordinate.y
+        }) scale(${k})`
+      );
+    });
     const svg = container
       .append("svg")
       .attr("viewBox", `-${width / 2} -${height / 2} ${width} ${height}`)
-      .attr("width", "100%")
-      .attr("height", "1080px")
+      .attr("id", "viewBox")
+      .attr("width", "auto")
+      .attr("height", "auto")
+      // .attr("transform", `translate(500,500)`)
       .style("display", "block")
-      .style("margin", "0 -14px")
       // .style("background", color(0))
-      .style("cursor", "pointer");
-    // .on("click", (event) => zoom(event, root));
+      .style("cursor", "pointer")
+      .call(zoomss)
+      .on("click", (event) => {
+        console.log(event, "eventasdadsas");
+        return zoom(event, root);
+      });
 
-    function zoomed() {
-      svg.attr("transform", d3.event.transform);
-    }
-
-    // 创建渐变函数
     function createLinearGradient(startColor, endColor) {
       let gradientId = "gradient-" + startColor + "-" + endColor;
       let gradient = svg
@@ -236,16 +253,56 @@ function BubbleComponent({ data }) {
           if (d.parent !== focus) this.style.display = "none";
         });
     }
+    d3.select("#zoomOut").on("click", function () {
+      console.log(123);
+      zoomss.scaleBy(svg, 1.1);
+    });
+    d3.select("#zoomIn").on("click", function () {
+      console.log(123);
+      zoomss.scaleBy(svg, 0.9);
+    });
+    d3.select("#reust").on("click", function () {
+      svg.call(zoomss.transform, d3.zoomIdentity);
+    });
   }
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       <div
         id="container"
         // style={{ transform: `scale(${number})` }}
+        style={{ background: "#e9e9e9" }}
         ref={chartRef}
+        onMouseMove={handleMouseMove}
       ></div>
+      <div
+        style={{
+          position: "absolute",
+          width: 150,
+          height: 36,
+          top: 20,
+          right: 20,
+          border: "1px solid #e2e2e2",
+          display: "flex",
+          justifyContent: "space-around",
+          alignItems: "center",
+          fontSize: "24px",
+          borderRadius: 5,
+        }}
+      >
+        <Button type="primary" id="reust">
+          复原
+        </Button>
+        <ZoomInOutlined
+          style={{ cursor: "pointer", fontSize: 16 }}
+          id="zoomOut"
+        />
+        <ZoomOutOutlined
+          style={{ cursor: "pointer", fontSize: 16 }}
+          id="zoomIn"
+        />
+      </div>
     </div>
   );
 }
 
-export default BubbleComponent;
+export default NewBubble;
